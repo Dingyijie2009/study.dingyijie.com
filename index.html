@@ -34,8 +34,6 @@
       <div class="progress" id="uploadProgress">
         <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
       </div>
-      <!-- 在上传按钮旁边添加验证码区域 -->
-      <div id="captchaContainer" style="margin-left:10px;"></div>
     </div>
     <div class="search-bar">
       <input type="text" id="searchInput" class="form-control" placeholder="搜索文件名或备注..." oninput="filterFiles()" />
@@ -54,7 +52,6 @@
     });
 
     let allFiles = [];
-    let captchaPassed = false;
 
     // 文件类型图标
     function getFileIcon(name) {
@@ -68,24 +65,6 @@
       if(['mp4','avi','mov','wmv'].includes(ext)) return '🎬';
       if(['mp3','wav','flac'].includes(ext)) return '🎵';
       return '📁';
-    }
-
-    // 初始化验证码
-    function renderCaptcha() {
-      captchaPassed = false;
-      AV.Captcha({
-        container: '#captchaContainer',
-        width: 200,
-        height: 50,
-        onSuccess: function() {
-          showMessage('success', '验证通过，可以上传文件');
-          captchaPassed = true;
-        },
-        onError: function() {
-          showMessage('danger', '验证码错误，请重试');
-          captchaPassed = false;
-        }
-      }).render();
     }
 
     // 上传文件
@@ -299,10 +278,6 @@
 
     // 通用批量上传函数
     async function uploadFiles(files, remark) {
-      if (!captchaPassed) {
-        showMessage('warning', '请先通过验证码');
-        return;
-      }
       for (const file of files) {
         // 检查是否已存在同名文件
         const query = new AV.Query('study');
