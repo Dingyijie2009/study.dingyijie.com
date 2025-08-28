@@ -24,9 +24,13 @@
     <h1 class="mb-4 text-center">学期存储记录</h1>
     <div id="messageBar" style="display:none;" class="alert" role="alert"></div>
     <div class="toolbar d-flex flex-wrap align-items-center gap-2">
-      <input type="file" id="fileInput" class="form-control" style="max-width:220px;" multiple webkitdirectory />
+      <!-- 单文件上传 -->
+      <input type="file" id="singleFileInput" class="form-control" style="max-width:220px; display:none;" />
+      <button class="btn btn-primary" onclick="document.getElementById('singleFileInput').click()">上传文件</button>
+      <!-- 文件夹上传 -->
+      <input type="file" id="folderInput" class="form-control" style="max-width:220px; display:none;" multiple webkitdirectory />
+      <button class="btn btn-success" onclick="document.getElementById('folderInput').click()">上传文件夹</button>
       <input type="text" id="remarkInput" class="form-control" placeholder="备注（可选）" style="max-width:180px;" />
-      <button class="btn btn-primary" onclick="uploadFile()">上传文件</button>
       <div class="progress" id="uploadProgress">
         <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
       </div>
@@ -245,6 +249,77 @@
         uploadFile();
       }
     });
+
+    document.getElementById('singleFileInput').addEventListener('change', async function() {
+      const input = this;
+      const remark = document.getElementById('remarkInput').value;
+      if (!input.files.length) {
+        showMessage('warning', '请选择文件');
+        return;
+      }
+      await uploadFiles(input.files, remark);
+      input.value = '';
+      document.getElementById('remarkInput').value = '';
+      loadFiles();
+    });
+
+    document.getElementById('folderInput').addEventListener('change', async function() {
+      const input = this;
+      const remark = document.getElementById('remarkInput').value;
+      if (!input.files.length) {
+        showMessage('warning', '请选择文件夹');
+        return;
+      }
+      await uploadFiles(input.files, remark);
+      input.value = '';
+      document.getElementById('remarkInput').value = '';
+      loadFiles();
+    });
+
+    // 通用批量上传函数
+    async function uploadFiles(files, remark) {
+      for (const file of files) {
+        // 检查是否已存在同名文件
+        const query = new AV.Query('study');
+        query.equalTo('name', file.name);
+        const exist = await query.first();
+        if (exist) {
+          showMessage('warning', `文件 ${file.name} 已存在，禁止重复上传`);
+          continue;
+        }
+        const avFile = new AV.File(file.name, file);
+        // 设置公开读取权限
+        const acl = new AV.ACL();
+        acl.setPublicReadAccess(true);
+        avFile.setACL(acl);
+        // 上传进度
+        document.getElementById('uploadProgress').style.display = 'block';
+        await avFile.save({
+          keepFileName: true,
+          onprogress: function(percent) {
+            document.getElementById('progressBar').style.width = percent + '%';
+          }
+        }).then(savedFile => {
+          // 存储到 study 表
+          const meta = new AV.Object('study');
+          meta.set('name', savedFile.get('name'));
+          meta.set('url', savedFile.get('url'));
+          meta.set('remark', remark);
+          // 设置公开读写权限
+          const metaAcl = new AV.ACL();
+          metaAcl.setPublicReadAccess(true);
+          metaAcl.setPublicWriteAccess(true);
+          meta.setACL(metaAcl);
+          meta.save().then(() => {
+            showProgressBar('success', '上传成功');
+          });
+        }).catch(() => {
+          showProgressBar('error', '上传失败');
+        });
+      }
+      document.getElementById('progressBar').style.width = '0%';
+      document.getElementById('uploadProgress').style.display = 'none';
+    }
   </script>
 </body>
 </html>
