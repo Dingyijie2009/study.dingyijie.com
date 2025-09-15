@@ -2,287 +2,233 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>file storage </title>
+  <title>文件混合上传预览+提交</title>
   <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4/dist/av-min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
-    body {
-      background: #f7f9fa;
-      font-family: "微软雅黑", Arial, sans-serif;
-    }
-    .container {
-      max-width: 800px;
-      margin: 40px auto;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px #0001;
-      padding: 32px;
-    }
-    .toolbar {
-      margin-bottom: 24px;
-    }
-    .file-list {
-      margin-top: 24px;
-    }
-    .file-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .file-icon {
-      font-size: 24px;
-      margin-right: 12px;
-    }
-    .file-meta {
-      flex: 1;
-    }
-    .file-actions button {
-      margin-left: 8px;
-    }
-    .search-bar {
-      margin-bottom: 16px;
-    }
-    .progress {
-      height: 20px;
-      margin-top: 8px;
-      display: none;
-    }
-    .stats {
-      margin-top: 24px;
-      font-size: 15px;
-      color: #888;
-    }
+    body { background: #f7f9fa; font-family: "微软雅黑", Arial, sans-serif; }
+    .container { max-width: 800px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px #0001; padding: 32px; }
+    .toolbar { margin-bottom: 24px; }
+    .file-list, .preview-list { margin-top: 24px; }
+    .file-item, .preview-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+    .file-icon { font-size: 24px; margin-right: 12px; }
+    .file-meta { flex: 1; }
+    .file-actions button { margin-left: 8px; }
+    .search-bar { margin-bottom: 16px; }
+    .progress { height: 20px; margin-top: 8px; display: none; }
+    .stats { margin-top: 24px; font-size: 15px; color: #888; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 class="mb-4 text-center">Dingfilestorage - 混合上传模式</h1>
+    <h1 class="mb-4 text-center">Dingfilestorage - 混合上传预览+提交</h1>
     <div id="messageBar" style="display:none;" class="alert" role="alert"></div>
 
     <div class="toolbar d-flex flex-wrap align-items-center gap-2">
-      <!-- 混合文件和文件夹选择 -->
-      <input
-        type="file"
-        id="mixedInput"
-        class="form-control"
-        style="max-width: 320px; display: none"
-        multiple
-        webkitdirectory
-      />
-      <button
-        class="btn btn-primary"
-        onclick="document.getElementById('mixedInput').click()"
-      >
-        选择文件或文件夹
-      </button>
-
-      <button class="btn btn-success" id="uploadBtn" disabled>提交上传</button>
-
-      <input
-        type="text"
-        id="remarkInput"
-        class="form-control"
-        placeholder="备注（可选）"
-        style="max-width: 180px"
-      />
+      <!-- 单文件多选上传 -->
+      <input type="file" id="singleFileInput" class="form-control" style="max-width:220px; display:none;" multiple />
+      <button class="btn btn-primary" onclick="document.getElementById('singleFileInput').click()">选择文件</button>
+      
+      <!-- 文件夹上传 -->
+      <input type="file" id="folderInput" class="form-control" style="max-width:220px; display:none;" multiple webkitdirectory />
+      <button class="btn btn-success" onclick="document.getElementById('folderInput').click()">选择文件夹</button>
+      
+      <!-- 备注 -->
+      <input type="text" id="remarkInput" class="form-control" placeholder="备注（可选，应用于所有待上传文件）" style="max-width: 300px;" />
+      
+      <!-- 提交上传按钮 -->
+      <button class="btn btn-warning" id="uploadAllBtn" disabled>提交上传</button>
 
       <div class="progress" id="uploadProgress">
-        <div
-          class="progress-bar"
-          id="progressBar"
-          role="progressbar"
-          style="width: 0%"
-        ></div>
+        <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
       </div>
     </div>
 
+    <!-- 预览待上传文件列表 -->
+    <h2>待上传文件预览</h2>
+    <div id="previewList" class="preview-list"><div class="text-muted">暂无待上传文件</div></div>
+
+    <!-- 搜索已上传文件 -->
     <div class="search-bar">
-      <input
-        type="text"
-        id="searchInput"
-        class="form-control"
-        placeholder="搜索文件名或备注..."
-        oninput="filterFiles()"
-      />
+      <input type="text" id="searchInput" class="form-control" placeholder="搜索文件名或备注..." oninput="filterFiles()" />
     </div>
 
-    <h2 class="mt-4">文件列表</h2>
-    <div id="fileList" class="file-list"></div>
+    <h2>已上传文件列表</h2>
+    <div id="fileList" class="file-list"><div class="text-muted">加载中...</div></div>
     <div class="stats" id="stats"></div>
   </div>
 
   <script>
     // 初始化 LeanCloud
     AV.init({
-      appId: "NOFmKbH8ZcIJX95z7f7lT7NR-MdYXbMMI",
-      appKey: "tu5Qw7cHQjkCbBQ7JmjlSdwf",
-      serverURLs: "https://nofmkbh8.api.lncldglobal.com",
+      appId: 'NOFmKbH8ZcIJX95z7f7lT7NR-MdYXbMMI',
+      appKey: 'tu5Qw7cHQjkCbBQ7JmjlSdwf',
+      serverURLs: 'https://nofmkbh8.api.lncldglobal.com'
     });
 
-    let allFiles = [];
-    let selectedFiles = [];
+    let allFiles = [];  // 已上传文件列表
+    let previewFiles = [];  // 待上传文件列表
 
     // 文件类型图标
     function getFileIcon(name) {
-      const ext = name.split(".").pop().toLowerCase();
-      if (["doc", "docx"].includes(ext)) return "📄";
-      if (["xls", "xlsx"].includes(ext)) return "📊";
-      if (["ppt", "pptx"].includes(ext)) return "📈";
-      if (["pdf"].includes(ext)) return "📕";
-      if (["jpg", "jpeg", "png", "gif", "bmp"].includes(ext)) return "🖼️";
-      if (["zip", "rar", "7z"].includes(ext)) return "🗜️";
-      if (["mp4", "avi", "mov", "wmv"].includes(ext)) return "🎬";
-      if (["mp3", "wav", "flac"].includes(ext)) return "🎵";
-      return "📁";
+      const ext = name.split('.').pop().toLowerCase();
+      if(['doc','docx'].includes(ext)) return '📄';
+      if(['xls','xlsx'].includes(ext)) return '📊';
+      if(['ppt','pptx'].includes(ext)) return '📈';
+      if(['pdf'].includes(ext)) return '📕';
+      if(['jpg','jpeg','png','gif','bmp'].includes(ext)) return '🖼️';
+      if(['zip','rar','7z'].includes(ext)) return '🗜️';
+      if(['mp4','avi','mov','wmv'].includes(ext)) return '🎬';
+      if(['mp3','wav','flac'].includes(ext)) return '🎵';
+      return '📁';
     }
 
-    // 选择文件或文件夹时触发
-    document
-      .getElementById("mixedInput")
-      .addEventListener("change", function () {
-        selectedFiles = Array.from(this.files);
-        if (selectedFiles.length > 0) {
-          document.getElementById("uploadBtn").disabled = false;
-          renderPreview(selectedFiles);
-        } else {
-          document.getElementById("uploadBtn").disabled = true;
-          clearPreview();
-        }
-      });
-
-    // 上传按钮点击
-    document
-      .getElementById("uploadBtn")
-      .addEventListener("click", async function () {
-        const remark = document.getElementById("remarkInput").value.trim();
-        if (selectedFiles.length === 0) {
-          showMessage("warning", "请选择文件或文件夹");
-          return;
-        }
-        this.disabled = true;
-        await uploadFiles(selectedFiles, remark);
-        selectedFiles = [];
-        clearPreview();
-        this.disabled = true;
-        document.getElementById("mixedInput").value = "";
-        document.getElementById("remarkInput").value = "";
-        loadFiles();
-      });
-
-    // 预览选中文件
-    function renderPreview(files) {
-      const fileList = document.getElementById("fileList");
-      fileList.innerHTML = "<h3>待上传文件预览：</h3>";
-      files.forEach((f) => {
-        const div = document.createElement("div");
-        div.className = "file-item";
-        div.innerHTML = `
-          <span class="file-icon">${getFileIcon(f.name)}</span>
-          <div class="file-meta">
-            <strong>${f.name}</strong>
-            <div class="text-muted" style="font-size:13px;">大小：${(
-              f.size /
-              1024
-            ).toFixed(1)} KB</div>
-          </div>
-        `;
-        fileList.appendChild(div);
-      });
-    }
-
-    function clearPreview() {
-      const fileList = document.getElementById("fileList");
-      fileList.innerHTML = "";
-    }
-
-    // 上传文件函数（批量）
-    async function uploadFiles(files, remark) {
-      document.getElementById("uploadProgress").style.display = "block";
-      const progressBar = document.getElementById("progressBar");
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        // 检查是否已存在同名文件
-        const query = new AV.Query("study");
-        query.equalTo("name", file.name);
-        const exist = await query.first();
-        if (exist) {
-          showMessage("warning", `文件 ${file.name} 已存在，禁止重复上传`);
+    // 预览添加文件
+    function addPreviewFiles(files) {
+      let addedCount = 0;
+      for (const file of files) {
+        // 避免重复加入
+        if (previewFiles.some(f => f.name === file.name && f.size === file.size)) {
+          showMessage('warning', `文件 ${file.name} 已在待上传列表中`);
           continue;
         }
+        // 如果已上传列表中有同名文件，不阻止预览，但上传时会判断
+        previewFiles.push(file);
+        addedCount++;
+      }
+      if(addedCount === 0) return;
+      renderPreview();
+      document.getElementById('uploadAllBtn').disabled = false;
+    }
+
+    // 渲染预览列表
+    function renderPreview() {
+      const previewList = document.getElementById('previewList');
+      previewList.innerHTML = '';
+      if (previewFiles.length === 0) {
+        previewList.innerHTML = '<div class="text-muted">暂无待上传文件</div>';
+        document.getElementById('uploadAllBtn').disabled = true;
+        return;
+      }
+      previewFiles.forEach((file, idx) => {
+        const div = document.createElement('div');
+        div.className = 'preview-item';
+        div.innerHTML = `
+          <span class="file-icon">${getFileIcon(file.name)}</span>
+          <div class="file-meta">
+            <strong>${file.name}</strong>
+            <div class="text-muted" style="font-size:13px;">大小: ${(file.size/1024).toFixed(2)} KB</div>
+          </div>
+          <div class="file-actions">
+            <button class="btn btn-outline-danger btn-sm" onclick="removePreviewFile(${idx})">移除</button>
+          </div>
+        `;
+        previewList.appendChild(div);
+      });
+    }
+
+    // 从预览列表移除文件
+    function removePreviewFile(index) {
+      previewFiles.splice(index, 1);
+      renderPreview();
+    }
+
+    // 提交上传所有预览文件
+    async function uploadAllFiles() {
+      if (previewFiles.length === 0) {
+        showMessage('warning', '没有待上传文件');
+        return;
+      }
+      const remark = document.getElementById('remarkInput').value.trim();
+
+      document.getElementById('uploadProgress').style.display = 'block';
+      let uploadedCount = 0;
+
+      for (let i = 0; i < previewFiles.length; i++) {
+        const file = previewFiles[i];
+        // 检查是否存在同名文件
+        const query = new AV.Query('study');
+        query.equalTo('name', file.name);
+        const exist = await query.first();
+        if (exist) {
+          showMessage('warning', `文件 ${file.name} 已存在，跳过上传`);
+          continue;
+        }
+
         const avFile = new AV.File(file.name, file);
-        // 设置公开读取权限
         const acl = new AV.ACL();
         acl.setPublicReadAccess(true);
         avFile.setACL(acl);
 
-        await avFile
-          .save({
+        try {
+          await avFile.save({
             keepFileName: true,
-            onprogress: function (percent) {
-              const percentAll = ((i + percent / 100) / files.length) * 100;
-              progressBar.style.width = percentAll + "%";
-            },
-          })
-          .then(async (savedFile) => {
-            const meta = new AV.Object("study");
-            meta.set("name", savedFile.get("name"));
-            meta.set("url", savedFile.get("url"));
-            meta.set("remark", remark);
-            const metaAcl = new AV.ACL();
-            metaAcl.setPublicReadAccess(true);
-            metaAcl.setPublicWriteAccess(true);
-            meta.setACL(metaAcl);
-            await meta.save();
-            showProgressBar("success", `上传成功: ${savedFile.get("name")}`);
-          })
-          .catch(() => {
-            showProgressBar("error", `上传失败: ${file.name}`);
+            onprogress: function(percent) {
+              const bar = document.getElementById('progressBar');
+              bar.style.width = ((i + percent / 100) / previewFiles.length * 100) + '%';
+              bar.textContent = `上传中：${file.name} (${percent.toFixed(0)}%)`;
+            }
           });
+
+          // 保存元数据
+          const meta = new AV.Object('study');
+          meta.set('name', avFile.get('name'));
+          meta.set('url', avFile.get('url'));
+          meta.set('remark', remark);
+          const metaAcl = new AV.ACL();
+          metaAcl.setPublicReadAccess(true);
+          metaAcl.setPublicWriteAccess(true);
+          meta.setACL(metaAcl);
+          await meta.save();
+
+          uploadedCount++;
+        } catch (e) {
+          showMessage('danger', `上传失败: ${file.name}`);
+        }
       }
-      progressBar.style.width = "0%";
-      document.getElementById("uploadProgress").style.display = "none";
+
+      showProgressBar('success', `上传完成：${uploadedCount} / ${previewFiles.length} 个文件`);
+      previewFiles = [];
+      renderPreview();
+      document.getElementById('remarkInput').value = '';
+      document.getElementById('uploadAllBtn').disabled = true;
+      loadFiles();
     }
 
-    // 加载已有文件
+    // 加载已上传文件
     async function loadFiles() {
-      const query = new AV.Query("study");
-      query.descending("createdAt");
+      const query = new AV.Query('study');
+      query.descending('createdAt');
       const files = await query.find();
 
-      allFiles = files.map((f) => ({
+      allFiles = files.map(f => ({
         id: f.id,
-        name: f.get("name"),
-        url: f.get("url"),
+        name: f.get('name'),
+        url: f.get('url'),
         createdAt: f.createdAt,
-        remark: f.get("remark") || "",
+        remark: f.get('remark') || ''
       }));
 
       renderFiles(allFiles);
       updateStats();
     }
 
-    // 渲染文件列表
+    // 渲染已上传文件列表
     function renderFiles(files) {
-      const fileList = document.getElementById("fileList");
-      if (selectedFiles.length > 0) return; // 如果预览状态，不显示已上传文件列表
-
-      fileList.innerHTML = "";
+      const fileList = document.getElementById('fileList');
+      fileList.innerHTML = '';
       if (files.length === 0) {
         fileList.innerHTML = '<div class="text-muted">暂无文件</div>';
         return;
       }
-      files.forEach((f) => {
-        const div = document.createElement("div");
-        div.className = "file-item";
+      files.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
         div.innerHTML = `
           <span class="file-icon">${getFileIcon(f.name)}</span>
           <div class="file-meta">
             <strong>${f.name}</strong>
-            <span class="text-secondary ms-2">${
-              f.remark ? "备注：" + f.remark : ""
-            }</span>
+            <span class="text-secondary ms-2">${f.remark ? '备注：' + f.remark : ''}</span>
             <div class="text-muted" style="font-size:13px;">上传时间：${f.createdAt.toLocaleString()}</div>
           </div>
           <div class="file-actions">
@@ -294,65 +240,82 @@
       });
     }
 
-    // 删除文件
+    // 删除文件及记录
     async function deleteFile(id) {
-      if (!confirm("确定要删除该文件吗？")) return;
-      document.getElementById("uploadProgress").style.display = "block";
-      const progressBar = document.getElementById("progressBar");
-      progressBar.style.width = "50%";
-      progressBar.textContent = "正在删除...";
+      if (!confirm('确定要删除该文件吗？')) return;
+      document.getElementById('uploadProgress').style.display = 'block';
+      const bar = document.getElementById('progressBar');
+      bar.style.width = '50%';
+      bar.textContent = '正在删除...';
       try {
-        const meta = AV.Object.createWithoutData("study", id);
+        const meta = AV.Object.createWithoutData('study', id);
         await meta.destroy();
-        showProgressBar("success", "删除成功");
+        showProgressBar('success', '删除成功');
         loadFiles();
       } catch {
-        showProgressBar("error", "删除失败");
+        showProgressBar('error', '删除失败');
       }
     }
 
     // 搜索过滤
     function filterFiles() {
-      const kw = document.getElementById("searchInput").value.trim();
+      const kw = document.getElementById('searchInput').value.trim();
       if (!kw) return renderFiles(allFiles);
-      const filtered = allFiles.filter(
-        (f) => f.name.includes(kw) || (f.remark && f.remark.includes(kw))
+      const filtered = allFiles.filter(f =>
+        f.name.includes(kw) || (f.remark && f.remark.includes(kw))
       );
       renderFiles(filtered);
     }
 
-    // 统计信息
+    // 文件统计
     function updateStats() {
-      const stats = document.getElementById("stats");
-      stats.innerHTML = `共 <b>${allFiles.length}</b> 个文件，最近上传：${allFiles[0]?.createdAt.toLocaleString() || "无"}`;
+      const stats = document.getElementById('stats');
+      stats.innerHTML = `共 <b>${allFiles.length}</b> 个文件，最近上传：${allFiles[0]?.createdAt.toLocaleString() || '无'}`;
     }
 
-    // 显示进度条状态
+    // 上传进度条显示
     function showProgressBar(status, text) {
-      const bar = document.getElementById("progressBar");
-      bar.style.width = "100%";
+      const bar = document.getElementById('progressBar');
+      bar.style.width = '100%';
       bar.textContent = text;
-      bar.className = "progress-bar " + (status === "success" ? "bg-success" : "bg-danger");
+      bar.className = 'progress-bar ' + (status === 'success' ? 'bg-success' : 'bg-danger');
       setTimeout(() => {
-        bar.style.width = "0%";
-        bar.textContent = "";
-        bar.className = "progress-bar";
-        document.getElementById("uploadProgress").style.display = "none";
-      }, 1500);
-    }
-
-    // 显示提示消息
-    function showMessage(type, text) {
-      const bar = document.getElementById("messageBar");
-      bar.className = "alert alert-" + type;
-      bar.textContent = text;
-      bar.style.display = "block";
-      setTimeout(() => {
-        bar.style.display = "none";
+        bar.style.width = '0%';
+        bar.textContent = '';
+        bar.className = 'progress-bar';
+        document.getElementById('uploadProgress').style.display = 'none';
       }, 2000);
     }
 
-    // 初始化页面时加载文件列表
+    // 消息提示
+    function showMessage(type, text) {
+      const bar = document.getElementById('messageBar');
+      bar.className = 'alert alert-' + type;
+      bar.textContent = text;
+      bar.style.display = 'block';
+      setTimeout(() => {
+        bar.style.display = 'none';
+      }, 2500);
+    }
+
+    // 事件绑定
+    document.getElementById('singleFileInput').addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        addPreviewFiles(e.target.files);
+      }
+      e.target.value = '';
+    });
+
+    document.getElementById('folderInput').addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        addPreviewFiles(e.target.files);
+      }
+      e.target.value = '';
+    });
+
+    document.getElementById('uploadAllBtn').addEventListener('click', uploadAllFiles);
+
+    // 页面加载初始化
     loadFiles();
   </script>
 </body>
