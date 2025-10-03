@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>FOLDER</title>
@@ -22,42 +22,42 @@
 <body>
   <div class="container">
     <div class="text-center mb-4">
-      <img src="https://dingyijie.com/images/icon.jpg" alt="Logo" style="height:360px;vertical-align:middle;margin-right:12px;">
+      <img src="https://dingyijie.com/images/icon.jpg" alt="Logo" style="height:110px;vertical-align:middle;margin-right:12px;">
       <h1 style="display:inline-block;vertical-align:middle;">Dingfilestorage</h1>
     </div>
     <div id="messageBar" style="display:none;" class="alert" role="alert"></div>
 
     <div class="toolbar d-flex flex-wrap align-items-center gap-2">
-      <!-- 单文件多选上传 -->
-      <input type="file" id="singleFileInput" class="form-control" style="max-width:220px; display:none;" multiple />
-      <button class="btn btn-primary" onclick="document.getElementById('singleFileInput').click()">选择文件</button>
+  <!-- Multi-file upload -->
+  <input type="file" id="singleFileInput" class="form-control" style="max-width:220px; display:none;" multiple />
+  <button class="btn btn-primary" onclick="document.getElementById('singleFileInput').click()">Select Files</button>
       
-      <!-- 文件夹上传 -->
-      <input type="file" id="folderInput" class="form-control" style="max-width:220px; display:none;" multiple webkitdirectory />
-      <button class="btn btn-success" onclick="document.getElementById('folderInput').click()">选择文件夹</button>
+  <!-- Folder upload -->
+  <input type="file" id="folderInput" class="form-control" style="max-width:220px; display:none;" multiple webkitdirectory />
+  <button class="btn btn-success" onclick="document.getElementById('folderInput').click()">Select Folder</button>
       
-      <!-- 备注 -->
-      <input type="text" id="remarkInput" class="form-control" placeholder="备注（可选，应用于所有待上传文件）" style="max-width: 300px;" />
+  <!-- Remark -->
+  <input type="text" id="remarkInput" class="form-control" placeholder="Remark (optional, applies to all files to be uploaded)" style="max-width: 300px;" />
       
-      <!-- 提交上传按钮 -->
-      <button class="btn btn-warning" id="uploadAllBtn" disabled>提交上传</button>
+  <!-- Upload button -->
+  <button class="btn btn-warning" id="uploadAllBtn" disabled>Upload All</button>
 
       <div class="progress" id="uploadProgress">
         <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
       </div>
     </div>
 
-    <!-- 预览待上传文件列表 -->
-    <h2>待上传文件预览</h2>
-    <div id="previewList" class="preview-list"><div class="text-muted">暂无待上传文件</div></div>
+    <!-- Preview files to be uploaded -->
+    <h2>Files to be Uploaded Preview</h2>
+    <div id="previewList" class="preview-list"><div class="text-muted">No files to be uploaded</div></div>
 
-    <!-- 搜索已上传文件 -->
+    <!-- Search uploaded files -->
     <div class="search-bar">
-      <input type="text" id="searchInput" class="form-control" placeholder="搜索文件名或备注..." oninput="filterFiles()" />
+      <input type="text" id="searchInput" class="form-control" placeholder="Search by filename or remark..." oninput="filterFiles()" />
     </div>
 
-    <h2>已上传文件列表</h2>
-    <div id="fileList" class="file-list"><div class="text-muted">加载中...</div></div>
+    <h2>Uploaded Files List</h2>
+    <div id="fileList" class="file-list"><div class="text-muted">Loading...</div></div>
     <div class="stats" id="stats"></div>
   </div>
 
@@ -90,12 +90,12 @@
     function addPreviewFiles(files) {
       let addedCount = 0;
       for (const file of files) {
-        // 避免重复加入
+        // Avoid duplicate
         if (previewFiles.some(f => f.name === file.name && f.size === file.size)) {
-          showMessage('warning', `文件 ${file.name} 已在待上传列表中`);
+          showMessage('warning', `File ${file.name} is already in the upload list`);
           continue;
         }
-        // 如果已上传列表中有同名文件，不阻止预览，但上传时会判断
+        // If a file with the same name exists in uploaded list, allow preview but check on upload
         previewFiles.push(file);
         addedCount++;
       }
@@ -109,7 +109,7 @@
       const previewList = document.getElementById('previewList');
       previewList.innerHTML = '';
       if (previewFiles.length === 0) {
-        previewList.innerHTML = '<div class="text-muted">暂无待上传文件</div>';
+        previewList.innerHTML = '<div class="text-muted">No files to be uploaded</div>';
         document.getElementById('uploadAllBtn').disabled = true;
         return;
       }
@@ -120,10 +120,10 @@
           <span class="file-icon">${getFileIcon(file.name)}</span>
           <div class="file-meta">
             <strong>${file.name}</strong>
-            <div class="text-muted" style="font-size:13px;">大小: ${(file.size/1024).toFixed(2)} KB</div>
+            <div class="text-muted" style="font-size:13px;">Size: ${(file.size/1024).toFixed(2)} KB</div>
           </div>
           <div class="file-actions">
-            <button class="btn btn-outline-danger btn-sm" onclick="removePreviewFile(${idx})">移除</button>
+            <button class="btn btn-outline-danger btn-sm" onclick="removePreviewFile(${idx})">Remove</button>
           </div>
         `;
         previewList.appendChild(div);
@@ -139,7 +139,7 @@
     // 提交上传所有预览文件
     async function uploadAllFiles() {
       if (previewFiles.length === 0) {
-        showMessage('warning', '没有待上传文件');
+        showMessage('warning', 'No files to be uploaded');
         return;
       }
       const remark = document.getElementById('remarkInput').value.trim();
@@ -154,7 +154,7 @@
         query.equalTo('name', file.name);
         const exist = await query.first();
         if (exist) {
-          showMessage('warning', `文件 ${file.name} 已存在，跳过上传`);
+          showMessage('warning', `File ${file.name} already exists, skipping upload`);
           continue;
         }
 
@@ -169,7 +169,7 @@
             onprogress: function(percent) {
               const bar = document.getElementById('progressBar');
               bar.style.width = ((i + percent / 100) / previewFiles.length * 100) + '%';
-              bar.textContent = `上传中：${file.name} (${percent.toFixed(0)}%)`;
+              bar.textContent = `Uploading: ${file.name} (${percent.toFixed(0)}%)`;
             }
           });
 
@@ -186,11 +186,11 @@
 
           uploadedCount++;
         } catch (e) {
-          showMessage('danger', `上传失败: ${file.name}`);
+          showMessage('danger', `Upload failed: ${file.name}`);
         }
       }
 
-      showProgressBar('success', `上传完成：${uploadedCount} / ${previewFiles.length} 个文件`);
+      showProgressBar('success', `Upload complete: ${uploadedCount} / ${previewFiles.length} files`);
       previewFiles = [];
       renderPreview();
       document.getElementById('remarkInput').value = '';
@@ -221,7 +221,7 @@
       const fileList = document.getElementById('fileList');
       fileList.innerHTML = '';
       if (files.length === 0) {
-        fileList.innerHTML = '<div class="text-muted">暂无文件</div>';
+        fileList.innerHTML = '<div class="text-muted">No files</div>';
         return;
       }
       files.forEach(f => {
@@ -231,12 +231,12 @@
           <span class="file-icon">${getFileIcon(f.name)}</span>
           <div class="file-meta">
             <strong>${f.name}</strong>
-            <span class="text-secondary ms-2">${f.remark ? '备注：' + f.remark : ''}</span>
-            <div class="text-muted" style="font-size:13px;">上传时间：${f.createdAt.toLocaleString()}</div>
+            <span class="text-secondary ms-2">${f.remark ? 'Remark: ' + f.remark : ''}</span>
+            <div class="text-muted" style="font-size:13px;">Uploaded: ${f.createdAt.toLocaleString()}</div>
           </div>
           <div class="file-actions">
-            <a href="${f.url}" download class="btn btn-outline-success btn-sm">下载</a>
-            <button class="btn btn-outline-danger btn-sm" onclick="deleteFile('${f.id}')">删除</button>
+            <a href="${f.url}" download class="btn btn-outline-success btn-sm">Download</a>
+            <button class="btn btn-outline-danger btn-sm" onclick="deleteFile('${f.id}')">Delete</button>
           </div>
         `;
         fileList.appendChild(div);
@@ -245,18 +245,18 @@
 
     // 删除文件及记录
     async function deleteFile(id) {
-      if (!confirm('确定要删除该文件吗？')) return;
-      document.getElementById('uploadProgress').style.display = 'block';
-      const bar = document.getElementById('progressBar');
-      bar.style.width = '50%';
-      bar.textContent = '正在删除...';
+  if (!confirm('Are you sure you want to delete this file?')) return;
+  document.getElementById('uploadProgress').style.display = 'block';
+  const bar = document.getElementById('progressBar');
+  bar.style.width = '50%';
+  bar.textContent = 'Deleting...';
       try {
         const meta = AV.Object.createWithoutData('study', id);
         await meta.destroy();
-        showProgressBar('success', '删除成功');
+        showProgressBar('success', 'Delete successful');
         loadFiles();
       } catch {
-        showProgressBar('error', '删除失败');
+        showProgressBar('error', 'Delete failed');
       }
     }
 
@@ -273,7 +273,7 @@
     // 文件统计
     function updateStats() {
       const stats = document.getElementById('stats');
-      stats.innerHTML = `共 <b>${allFiles.length}</b> 个文件，最近上传：${allFiles[0]?.createdAt.toLocaleString() || '无'}`;
+  stats.innerHTML = `Total <b>${allFiles.length}</b> files, last uploaded: ${allFiles[0]?.createdAt.toLocaleString() || 'None'}`;
     }
 
     // 上传进度条显示
